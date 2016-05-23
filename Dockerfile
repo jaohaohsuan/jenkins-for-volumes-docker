@@ -1,14 +1,24 @@
-FROM jenkins:1.642.2
+FROM jenkins:alpine
 
 USER root
 
 # gosu
-RUN gpg --keyserver pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
-  && curl -sSL -o /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/1.2/gosu-$(dpkg --print-architecture)" \
-  && curl -sSL -o /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/1.2/gosu-$(dpkg --print-architecture).asc" \
-  && gpg --verify /usr/local/bin/gosu.asc \
-  && rm /usr/local/bin/gosu.asc \
-  && chmod +x /usr/local/bin/gosu
+ENV GOSU_VERSION 1.7
+RUN set -x \
+    && apk add --no-cache --virtual .gosu-deps \
+        dpkg \
+        gnupg \
+        openssl \
+        bash \
+    && wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture)" \
+    && wget -O /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture).asc" \
+    && export GNUPGHOME="$(mktemp -d)" \
+    && gpg --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
+    && gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu \
+    && rm -r "$GNUPGHOME" /usr/local/bin/gosu.asc \
+    && chmod +x /usr/local/bin/gosu \
+    && gosu nobody true \
+    && apk del .gosu-deps
 
 COPY volume-permissions.sh /usr/local/bin/volume-permissions.sh
 
